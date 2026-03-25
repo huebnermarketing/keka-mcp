@@ -8,6 +8,41 @@ import { getKekaClient, handleApiError } from "../services/kekaClient.js";
 import { CHARACTER_LIMIT, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 import { ResponseFormat, KekaAttendanceRecord, KekaPaginatedResponse } from "../types.js";
 
+// ---------------------------------------------------------------------------
+// Attendance formatting helpers
+// ---------------------------------------------------------------------------
+
+/** Convert a decimal hour value (e.g. 10.4) into "10h 24m". */
+function decimalHoursToHM(decimal: number): string {
+  const totalMinutes = Math.round(decimal * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+/** Format a UTC ISO 8601 timestamp to IST (UTC+5:30) time string, e.g. "11:13 AM". */
+function utcToIST(utcTimestamp: string): string {
+  const date = new Date(utcTimestamp);
+  // Shift UTC ms by +5h30m
+  const istOffsetMs = (5 * 60 + 30) * 60 * 1000;
+  const istDate = new Date(date.getTime() + istOffsetMs);
+  const hours24 = istDate.getUTCHours();
+  const minutes = istDate.getUTCMinutes();
+  const ampm = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = hours24 % 12 || 12;
+  const mm = String(minutes).padStart(2, "0");
+  return `${hours12}:${mm} ${ampm}`;
+}
+
+/** Format a UTC ISO 8601 date string to "DD MMM", e.g. "23 Mar". */
+function utcToDateLabel(utcTimestamp: string): string {
+  const date = new Date(utcTimestamp);
+  const day = date.getUTCDate();
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${day} ${monthNames[date.getUTCMonth()]}`;
+}
+
 const ResponseFormatSchema = z
   .nativeEnum(ResponseFormat)
   .default(ResponseFormat.MARKDOWN)
@@ -116,14 +151,25 @@ Examples:
         const lines = [
           `# Attendance Records`,
           "",
-          `| Employee | Date | Clock In | Clock Out | Hours | Status | Shift |`,
+          `| Employee | Date | Clock In | Clock Out | Hours | OT | Location |`,
           `|---|---|---|---|---|---|---|`,
           ...res.data.map((a) => {
-            const special = a.isHoliday ? "🏖 Holiday" : a.isWeekOff ? "📅 Week Off" : (a.status ?? "—");
-            return (
-              `| ${a.employeeName ?? a.employeeId} | ${a.date} | ${a.clockIn ?? "—"} | ` +
-              `${a.clockOut ?? "—"} | ${a.totalHours != null ? `${a.totalHours}h` : "—"} | ${special} | ${a.shift ?? "—"} |`
-            );
+            const employee = a.employeeNumber ?? "—";
+            const date = a.attendanceDate ? utcToDateLabel(a.attendanceDate) : "—";
+            const clockIn = a.firstInOfTheDay?.timestamp
+              ? utcToIST(a.firstInOfTheDay.timestamp)
+              : "—";
+            const clockOut = a.lastOutOfTheDay?.timestamp
+              ? utcToIST(a.lastOutOfTheDay.timestamp)
+              : (a.firstInOfTheDay?.timestamp ? "Still In" : "—");
+            const hours = a.totalGrossHours != null && a.totalGrossHours > 0
+              ? decimalHoursToHM(a.totalGrossHours)
+              : "—";
+            const ot = a.totalEffectiveOvertimeDuration != null && a.totalEffectiveOvertimeDuration > 0
+              ? decimalHoursToHM(a.totalEffectiveOvertimeDuration)
+              : "—";
+            const location = (a.firstInOfTheDay?.premiseName ?? "").trim() || "—";
+            return `| ${employee} | ${date} | ${clockIn} | ${clockOut} | ${hours} | ${ot} | ${location} |`;
           }),
         ];
         lines.push(formatPaginationFooter(res));

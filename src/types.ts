@@ -117,17 +117,19 @@ export interface KekaLeaveBalance {
 // Attendance
 // ---------------------------------------------------------------------------
 
+export interface KekaAttendancePunch {
+  timestamp: string;       // ISO 8601 UTC, e.g. "2026-03-23T05:43:57Z"
+  punchStatus: number;     // 0 = in, 1 = out
+  premiseName?: string;    // may have a leading space — always trim before display
+}
+
 export interface KekaAttendanceRecord {
-  employeeId: string;
-  employeeName?: string;
-  date: string;
-  clockIn?: string;
-  clockOut?: string;
-  totalHours?: number;
-  status?: string;
-  shift?: string;
-  isHoliday?: boolean;
-  isWeekOff?: boolean;
+  employeeNumber: string;                     // e.g. "RIQ168"
+  attendanceDate: string;                     // ISO 8601 UTC date, e.g. "2026-03-23T00:00:00Z"
+  totalGrossHours?: number;                   // decimal hours, e.g. 10.4 → "10h 24m"
+  totalEffectiveOvertimeDuration?: number;    // decimal hours; 0 means no OT
+  firstInOfTheDay?: KekaAttendancePunch | null;
+  lastOutOfTheDay?: KekaAttendancePunch | null;
 }
 
 // ---------------------------------------------------------------------------
