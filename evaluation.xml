@@ -1,0 +1,51 @@
+<evaluation>
+  <qa_pair>
+    <question>An HR manager wants to find all employees currently in their notice period. Which tool should be used, and what parameter enables this filter?</question>
+    <answer>keka_list_employees with inNoticePeriod=true</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>A payroll admin needs to fetch salary data for employees in a specific pay group. What is the correct parameter name passed to keka_list_salaries for filtering by pay group IDs?</question>
+    <answer>payGroupIds</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>What is the maximum number of days allowed in a single date range when fetching attendance records using keka_get_attendance?</question>
+    <answer>90</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>An agent needs to submit a leave request on behalf of an employee. Which tool handles this, and what parameter allows specifying that someone else is submitting it?</question>
+    <answer>keka_create_leave_request with the requestedBy parameter</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>What OAuth2 grant_type does the Keka API use for authentication (as implemented in the server's kekaClient.ts)?</question>
+    <answer>kekaapi</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>How many minutes before a Keka access token expires does the server automatically refresh it?</question>
+    <answer>2</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>An agent wants to find all open job positions and then see who applied. What is the correct sequence of tools to call, in order?</question>
+    <answer>keka_list_jobs then keka_list_candidates</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>What environment variable must be set to switch the server from stdio transport to HTTP transport?</question>
+    <answer>TRANSPORT=http</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>What is the maximum pageSize value accepted by the Keka API and enforced in the MCP server's Zod schemas?</question>
+    <answer>200</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>An agent calls keka_list_employees and receives a response where totalRecords=500, pageSize=50, pageNumber=1. What pageNumber parameter should be passed to retrieve the final page?</question>
+    <answer>10</answer>
+  </qa_pair>
+</evaluation>
