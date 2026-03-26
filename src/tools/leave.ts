@@ -263,7 +263,9 @@ Note: Requires the API key to have leave management write permissions.`,
         toSession: params.toSession,
       };
       if (params.reason) body.reason = params.reason;
-      if (params.note) body.note = params.note;
+      // Keka requires 'note' for certain leave types (e.g. Paid Leave).
+      // Auto-populate from reason if not explicitly provided.
+      body.note = params.note || params.reason || "";
 
       try {
         const client = getKekaClient();
