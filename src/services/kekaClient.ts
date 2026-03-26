@@ -156,7 +156,8 @@ export function handleApiError(error: unknown): string {
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data as { message?: string; errors?: string[] } | undefined;
-      const msg = data?.message ?? data?.errors?.[0] ?? "";
+      // Prefer errors[] over message — Keka's message is always generic ("An Error Occured")
+      const msg = (data?.errors?.length ? data.errors.join("; ") : "") || data?.message || "";
 
       switch (status) {
         case 400:
@@ -170,7 +171,7 @@ export function handleApiError(error: unknown): string {
         case 429:
           return `Error: Rate limit exceeded (${RATE_LIMIT_RPM} req/min). Please wait before retrying.`;
         case 500:
-          return "Error: Keka server error. Try again in a moment.";
+          return `Error: Keka server error (500). ${msg || "Try again in a moment."}`;
         default:
           return `Error: API request failed (HTTP ${status}). ${msg}`;
       }
@@ -188,6 +189,15 @@ export function handleApiError(error: unknown): string {
 // ---------------------------------------------------------------------------
 
 let _client: KekaClient | null = null;
+
+/**
+ * Returns the employee ID of the person running the MCP (i.e. the logged-in user).
+ * Set KEKA_EMPLOYEE_ID in your Claude Desktop config to enable manager-on-behalf-of flows.
+ * Falls back to undefined if not configured.
+ */
+export function getRequestingEmployeeId(): string | undefined {
+  return process.env.KEKA_EMPLOYEE_ID || undefined;
+}
 
 export function getKekaClient(): KekaClient {
   if (_client) return _client;

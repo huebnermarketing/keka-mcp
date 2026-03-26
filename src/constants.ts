@@ -5,8 +5,8 @@
 /** Maximum characters in a single tool response to avoid overwhelming context */
 export const CHARACTER_LIMIT = 25000;
 
-/** Default page size for paginated requests */
-export const DEFAULT_PAGE_SIZE = 50;
+/** Default page size for paginated requests (Keka API default is 100) */
+export const DEFAULT_PAGE_SIZE = 100;
 
 /** Maximum page size supported by Keka API */
 export const MAX_PAGE_SIZE = 200;

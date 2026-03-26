@@ -4,13 +4,14 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { getKekaClient, handleApiError } from "../services/kekaClient.js";
+import { getKekaClient, handleApiError, getRequestingEmployeeId } from "../services/kekaClient.js";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 import {
   ResponseFormat,
   KekaLeaveRequest,
   KekaLeaveType,
   KekaLeaveBalance,
+  KekaLeaveBalanceEntry,
 } from "../types.js";
 import {
   PaginationSchema,
@@ -67,11 +68,11 @@ Use the returned IDs when creating leave requests with keka_create_leave_request
         const lines = [
           `# Keka Leave Types`,
           "",
-          `| Name | Code | ID | Paid? |`,
-          `|---|---|---|---|`,
+          `| Name | Identifier | Paid? |`,
+          `|---|---|---|`,
           ...res.data.map(
             (lt) =>
-              `| ${lt.name} | ${lt.code ?? "—"} | ${lt.id} | ${lt.isPaid ? "Yes" : "No"} |`
+              `| ${lt.name} | \`${lt.identifier}\` | ${lt.isPaid ? "Yes" : "No"} |`
           ),
         ];
         lines.push(formatPaginationFooter(res));
@@ -161,11 +162,14 @@ Examples:
 
         const lines = [`# Leave Requests`, ""];
         for (const lr of res.data) {
+          const leaveTypeName = lr.selection?.[0]?.leaveTypeName ?? "—";
+          const days = lr.selection?.[0]?.count ?? "?";
           lines.push(
-            `- **${lr.employeeName ?? lr.employeeId}** | ${lr.leaveType?.name ?? "—"} | ` +
-            `${lr.fromDate} → ${lr.toDate} (${lr.numberOfDays}d) | ` +
+            `- **Emp #${lr.employeeNumber ?? lr.employeeIdentifier}** | ` +
+            `${lr.fromDate?.slice(0, 10)} → ${lr.toDate?.slice(0, 10)} | ` +
+            `${leaveTypeName} (${days}d) | ` +
             `Status: **${lr.status ?? "—"}**` +
-            (lr.reason ? ` | _"${lr.reason}"_` : "")
+            (lr.note ? ` | _"${lr.note}"_` : "")
           );
         }
         lines.push(formatPaginationFooter(res));
@@ -189,7 +193,10 @@ Args:
   - leaveTypeId (string, required): Leave type ID (use keka_list_leave_types to find IDs)
   - fromDate (string, required): Start date in ISO 8601 format (e.g., '2025-04-01')
   - toDate (string, required): End date in ISO 8601 format (e.g., '2025-04-03')
-  - reason (string, required): Reason for leave
+  - fromSession (number, optional): Start session — 0 = first half, 1 = second half (default: 0)
+  - toSession (number, optional): End session — 0 = first half, 1 = second half (default: 1)
+  - reason (string, optional): Reason for leave
+  - note (string, optional): Additional note for the request
   - requestedBy (string, optional): Employee ID of the person submitting on behalf (defaults to employee)
   - response_format ('markdown' | 'json'): Output format (default: 'markdown')
 
@@ -212,7 +219,22 @@ Note: Requires the API key to have leave management write permissions.`,
             .string()
             .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format")
             .describe("Leave end date (e.g., '2025-04-03')"),
-          reason: z.string().min(1).max(500).describe("Reason for leave"),
+          fromSession: z
+            .number()
+            .int()
+            .min(0)
+            .max(1)
+            .default(0)
+            .describe("Start session: 0 = first half, 1 = second half"),
+          toSession: z
+            .number()
+            .int()
+            .min(0)
+            .max(1)
+            .default(1)
+            .describe("End session: 0 = first half, 1 = second half"),
+          reason: z.string().max(500).optional().describe("Reason for leave"),
+          note: z.string().max(500).optional().describe("Additional note for the request"),
           requestedBy: z
             .string()
             .optional()
@@ -228,24 +250,41 @@ Note: Requires the API key to have leave management write permissions.`,
       },
     },
     async (params) => {
+      // requestedBy = who is submitting the request (the logged-in user).
+      // Priority: explicit param > KEKA_EMPLOYEE_ID env var > employeeId (self-service fallback)
+      const requestedBy = params.requestedBy ?? getRequestingEmployeeId() ?? params.employeeId;
+      const body: Record<string, unknown> = {
+        employeeId: params.employeeId,
+        requestedBy,
+        leaveTypeId: params.leaveTypeId,
+        fromDate: params.fromDate,
+        toDate: params.toDate,
+        fromSession: params.fromSession,
+        toSession: params.toSession,
+      };
+      if (params.reason) body.reason = params.reason;
+      // Keka requires 'note' for certain leave types (e.g. Paid Leave).
+      // Auto-populate from reason if not explicitly provided.
+      body.note = params.note || params.reason || "";
+
       try {
         const client = getKekaClient();
-        const body: Record<string, unknown> = {
-          employeeId: params.employeeId,
-          leaveTypeId: params.leaveTypeId,
-          fromDate: params.fromDate,
-          toDate: params.toDate,
-          reason: params.reason,
-        };
-        if (params.requestedBy) body.requestedBy = params.requestedBy;
 
-        const res = await client.post<{ succeeded: boolean; message: string; data: { id: string } }>(
+        const res = await client.post<{ succeeded: boolean; message: string; errors?: string[]; data: { id: string } }>(
           "/time/leaverequests",
           body
         );
 
         if (!res.succeeded) {
-          return { content: [{ type: "text", text: `Error: ${res.message}` }] };
+          const detail = res.errors?.length
+            ? res.errors.join("; ")
+            : (res.message || "Unknown error");
+          return {
+            content: [{
+              type: "text",
+              text: `Error: ${detail}\n\n_Debug — requestedBy:_ \`${requestedBy}\``,
+            }],
+          };
         }
 
         if (params.response_format === ResponseFormat.JSON) {
@@ -260,13 +299,20 @@ Note: Requires the API key to have leave management write permissions.`,
                 `✅ Leave request created successfully.\n\n` +
                 `- **Request ID:** ${res.data?.id ?? "—"}\n` +
                 `- **Employee:** ${params.employeeId}\n` +
-                `- **Dates:** ${params.fromDate} → ${params.toDate}\n` +
-                `- **Reason:** ${params.reason}`,
+                `- **Submitted by:** ${requestedBy}\n` +
+                `- **Dates:** ${params.fromDate} → ${params.toDate}` +
+                (params.reason ? `\n- **Reason:** ${params.reason}` : "") +
+                (params.note ? `\n- **Note:** ${params.note}` : ""),
             },
           ],
         };
       } catch (error) {
-        return { content: [{ type: "text", text: handleApiError(error) }] };
+        return {
+          content: [{
+            type: "text",
+            text: `${handleApiError(error)}\n\n_Sent body:_ \`${JSON.stringify(body)}\``,
+          }],
+        };
       }
     }
   );
@@ -326,15 +372,27 @@ Returns: Leave balance breakdown per employee and leave type — opening, earned
           return { content: [{ type: "text", text: truncate(JSON.stringify(res, null, 2)) }] };
         }
 
+        const rows: string[] = [];
+        for (const lb of res.data) {
+          const emp = lb.employeeName ?? lb.employeeNumber ?? lb.employeeIdentifier;
+          if (!lb.leaveBalance?.length) {
+            rows.push(`| ${emp} | — | — | — | — | — |`);
+          } else {
+            for (const entry of lb.leaveBalance) {
+              rows.push(
+                `| ${emp} | ${entry.leaveTypeName ?? entry.leaveTypeId} | ` +
+                `${entry.annualQuota < 0 ? "Unlimited" : entry.annualQuota} | ` +
+                `${entry.accruedAmount} | ${entry.consumedAmount} | ${entry.availableBalance} |`
+              );
+            }
+          }
+        }
         const lines = [
           `# Leave Balances`,
           "",
-          `| Employee | Leave Type | Opening | Earned | Taken | Pending | Closing |`,
-          `|---|---|---|---|---|---|---|`,
-          ...res.data.map(
-            (lb) =>
-              `| ${lb.employeeName ?? lb.employeeId} | ${lb.leaveTypeName ?? lb.leaveTypeId} | ${lb.openingBalance} | ${lb.earned} | ${lb.taken} | ${lb.pending} | ${lb.closing} |`
-          ),
+          `| Employee | Leave Type | Quota | Accrued | Used | Available |`,
+          `|---|---|---|---|---|---|`,
+          ...rows,
         ];
         lines.push(formatPaginationFooter(res));
         return { content: [{ type: "text", text: truncate(lines.join("\n")) }] };

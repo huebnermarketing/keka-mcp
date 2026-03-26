@@ -131,7 +131,7 @@ Examples:
         const lines = [
           `# Attendance Records`,
           "",
-          `| Employee | Date | Clock In | Clock Out | Hours | OT | Location |`,
+          `| Employee | Date | Clock In | Clock Out | Gross Hours | Effective Hours | Location |`,
           `|---|---|---|---|---|---|---|`,
           ...res.data.map((a) => {
             const employee = a.employeeNumber ?? "—";
@@ -142,14 +142,14 @@ Examples:
             const clockOut = a.lastOutOfTheDay?.timestamp
               ? utcToLocalTime(a.lastOutOfTheDay.timestamp)
               : (a.firstInOfTheDay?.timestamp ? "Still In" : "—");
-            const hours = a.totalGrossHours != null && a.totalGrossHours > 0
+            const grossHours = a.totalGrossHours != null && a.totalGrossHours > 0
               ? decimalHoursToHM(a.totalGrossHours)
               : "—";
-            const ot = a.totalEffectiveOvertimeDuration != null && a.totalEffectiveOvertimeDuration > 0
-              ? decimalHoursToHM(a.totalEffectiveOvertimeDuration)
+            const effectiveHours = a.totalEffectiveHours != null && a.totalEffectiveHours > 0
+              ? decimalHoursToHM(a.totalEffectiveHours)
               : "—";
             const location = (a.firstInOfTheDay?.premiseName ?? "").trim() || "—";
-            return `| ${employee} | ${date} | ${clockIn} | ${clockOut} | ${hours} | ${ot} | ${location} |`;
+            return `| ${employee} | ${date} | ${clockIn} | ${clockOut} | ${grossHours} | ${effectiveHours} | ${location} |`;
           }),
         ];
         lines.push(formatPaginationFooter(res));

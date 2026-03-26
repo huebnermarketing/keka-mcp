@@ -140,13 +140,16 @@ Returns: Candidate list with name, email, phone, current interview stage, applic
         const lines = [
           `# Candidates for Job ${params.jobId}`,
           "",
-          `| Name | Email | Stage | Status | Applied | Source |`,
-          `|---|---|---|---|---|---|`,
-          ...res.data.map(
-            (c) =>
-              `| ${c.name} | ${c.email ?? "—"} | ${c.currentStage ?? "—"} | ` +
-              `${c.status ?? "—"} | ${c.appliedDate ?? "—"} | ${c.source ?? "—"} |`
-          ),
+          `| Name | Email | Mobile | Gender |`,
+          `|---|---|---|---|`,
+          ...res.data.map((c) => {
+            const name = [c.firstName, c.middleName, c.lastName].filter(Boolean).join(" ");
+            const mobile = c.mobilePhone
+              ? `${c.mobilePhone.countryCode ?? ""} ${c.mobilePhone.number ?? ""}`.trim()
+              : "—";
+            const gender = c.gender === 0 ? "Male" : c.gender === 1 ? "Female" : "—";
+            return `| ${name} | ${c.email ?? "—"} | ${mobile} | ${gender} |`;
+          }),
         ];
         lines.push(formatPaginationFooter(res));
         return { content: [{ type: "text", text: truncate(lines.join("\n")) }] };

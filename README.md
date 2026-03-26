@@ -4,7 +4,7 @@
 
 MCP server for the [Keka HRM](https://www.keka.com) API, built for White Label IQ (WLIQ).
 
-Exposes 16 tools covering Keka's core modules so Claude (or any MCP client) can query and act on HR data.
+Exposes 14 tools covering Keka's core modules so Claude (or any MCP client) can query and act on HR data.
 
 ---
 
@@ -38,12 +38,6 @@ Exposes 16 tools covering Keka's core modules so Claude (or any MCP client) can 
 | `keka_list_pay_groups` | List payroll groups |
 | `keka_list_pay_bands` | List salary pay bands |
 | `keka_list_salaries` | List employee salaries (CTC, pay group) |
-
-### Expense
-| Tool | Description |
-|---|---|
-| `keka_list_expenses` | List individual expenses for an employee |
-| `keka_list_expense_claims` | List all expense claims across employees |
 
 ### Recruitment (Keka Hire)
 | Tool | Description |
@@ -88,6 +82,7 @@ npm run build
 | `KEKA_CLIENT_ID` | ✅ | OAuth2 Client ID from Keka admin |
 | `KEKA_CLIENT_SECRET` | ✅ | OAuth2 Client Secret |
 | `KEKA_API_KEY` | ✅ | API key from Keka admin |
+| `KEKA_EMPLOYEE_ID` | Optional | Your own Keka employee ID — used as `requestedBy` when applying leave on behalf of others |
 | `KEKA_SANDBOX` | Optional | Set to `true` to use `kekademo.com` sandbox auth |
 | `TRANSPORT` | Optional | `stdio` (default) or `http` |
 | `PORT` | Optional | HTTP port when `TRANSPORT=http` (default: `3000`) |
@@ -108,14 +103,18 @@ Add to your `claude_desktop_config.json`:
         "KEKA_BASE_URL": "https://yourcompany.keka.com",
         "KEKA_CLIENT_ID": "your-client-id",
         "KEKA_CLIENT_SECRET": "your-client-secret",
-        "KEKA_API_KEY": "your-api-key"
+        "KEKA_API_KEY": "your-api-key",
+        "KEKA_EMPLOYEE_ID": "your-employee-uuid"
       }
     }
   }
 }
 ```
 
----
+### HR Skill Prompt (optional)
+
+Copy the contents of [`keka-hr-skill.md`](./keka-hr-skill.md) into Claude Desktop's **Custom Instructions** (Settings → Custom Instructions). This teaches Claude how to handle Keka operations smoothly — resolving names to IDs, always including required fields, checking balances before applying leave, etc.
+```
 
 ## HTTP mode (remote deployment)
 
