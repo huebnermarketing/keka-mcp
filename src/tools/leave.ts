@@ -250,22 +250,23 @@ Note: Requires the API key to have leave management write permissions.`,
       },
     },
     async (params) => {
+      // requestedBy = who is submitting the request (the logged-in user).
+      // Priority: explicit param > KEKA_EMPLOYEE_ID env var > employeeId (self-service fallback)
+      const requestedBy = params.requestedBy ?? getRequestingEmployeeId() ?? params.employeeId;
+      const body: Record<string, unknown> = {
+        employeeId: params.employeeId,
+        requestedBy,
+        leaveTypeId: params.leaveTypeId,
+        fromDate: params.fromDate,
+        toDate: params.toDate,
+        fromSession: params.fromSession,
+        toSession: params.toSession,
+      };
+      if (params.reason) body.reason = params.reason;
+      if (params.note) body.note = params.note;
+
       try {
         const client = getKekaClient();
-        // requestedBy = who is submitting the request (the logged-in user).
-        // Priority: explicit param > KEKA_EMPLOYEE_ID env var > employeeId (self-service fallback)
-        const requestedBy = params.requestedBy ?? getRequestingEmployeeId() ?? params.employeeId;
-        const body: Record<string, unknown> = {
-          employeeId: params.employeeId,
-          requestedBy,
-          leaveTypeId: params.leaveTypeId,
-          fromDate: params.fromDate,
-          toDate: params.toDate,
-          fromSession: params.fromSession,
-          toSession: params.toSession,
-        };
-        if (params.reason) body.reason = params.reason;
-        if (params.note) body.note = params.note;
 
         const res = await client.post<{ succeeded: boolean; message: string; errors?: string[]; data: { id: string } }>(
           "/time/leaverequests",
@@ -304,7 +305,12 @@ Note: Requires the API key to have leave management write permissions.`,
           ],
         };
       } catch (error) {
-        return { content: [{ type: "text", text: handleApiError(error) }] };
+        return {
+          content: [{
+            type: "text",
+            text: `${handleApiError(error)}\n\n_Sent body:_ \`${JSON.stringify(body)}\``,
+          }],
+        };
       }
     }
   );

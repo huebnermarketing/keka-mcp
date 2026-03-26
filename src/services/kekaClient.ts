@@ -156,7 +156,8 @@ export function handleApiError(error: unknown): string {
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data as { message?: string; errors?: string[] } | undefined;
-      const msg = data?.message ?? (data?.errors?.length ? data.errors.join("; ") : "") ?? "";
+      // Prefer errors[] over message — Keka's message is always generic ("An Error Occured")
+      const msg = (data?.errors?.length ? data.errors.join("; ") : "") || data?.message || "";
 
       switch (status) {
         case 400:
