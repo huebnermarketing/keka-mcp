@@ -156,7 +156,7 @@ export function handleApiError(error: unknown): string {
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data as { message?: string; errors?: string[] } | undefined;
-      const msg = data?.message ?? data?.errors?.[0] ?? "";
+      const msg = data?.message ?? (data?.errors?.length ? data.errors.join("; ") : "") ?? "";
 
       switch (status) {
         case 400:
@@ -170,7 +170,7 @@ export function handleApiError(error: unknown): string {
         case 429:
           return `Error: Rate limit exceeded (${RATE_LIMIT_RPM} req/min). Please wait before retrying.`;
         case 500:
-          return "Error: Keka server error. Try again in a moment.";
+          return `Error: Keka server error (500). ${msg || "Try again in a moment."}`;
         default:
           return `Error: API request failed (HTTP ${status}). ${msg}`;
       }

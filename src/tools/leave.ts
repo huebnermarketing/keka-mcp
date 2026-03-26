@@ -67,11 +67,11 @@ Use the returned IDs when creating leave requests with keka_create_leave_request
         const lines = [
           `# Keka Leave Types`,
           "",
-          `| Name | Code | ID | Paid? |`,
-          `|---|---|---|---|`,
+          `| Name | Identifier | Paid? |`,
+          `|---|---|---|`,
           ...res.data.map(
             (lt) =>
-              `| ${lt.name} | ${lt.code ?? "—"} | ${lt.id} | ${lt.isPaid ? "Yes" : "No"} |`
+              `| ${lt.name} | \`${lt.identifier}\` | ${lt.isPaid ? "Yes" : "No"} |`
           ),
         ];
         lines.push(formatPaginationFooter(res));
@@ -161,9 +161,12 @@ Examples:
 
         const lines = [`# Leave Requests`, ""];
         for (const lr of res.data) {
+          const leaveTypeName = lr.selection?.[0]?.leaveTypeName ?? "—";
+          const days = lr.selection?.[0]?.count ?? "?";
           lines.push(
             `- **Emp #${lr.employeeNumber ?? lr.employeeIdentifier}** | ` +
-            `${lr.fromDate} → ${lr.toDate} | ` +
+            `${lr.fromDate?.slice(0, 10)} → ${lr.toDate?.slice(0, 10)} | ` +
+            `${leaveTypeName} (${days}d) | ` +
             `Status: **${lr.status ?? "—"}**` +
             (lr.note ? ` | _"${lr.note}"_` : "")
           );

@@ -81,8 +81,9 @@ export interface KekaGroup {
 // ---------------------------------------------------------------------------
 
 export interface KekaLeaveType {
-  id: string;
+  identifier: string;   // Keka returns 'identifier', not 'id'
   name: string;
+  description?: string;
   code?: string;
   isPaid?: boolean;
 }
@@ -91,7 +92,6 @@ export interface KekaLeaveRequest {
   id: string;
   employeeIdentifier: string;
   employeeNumber?: string;
-  leaveTypeId?: string;
   fromDate: string;
   toDate: string;
   fromSession?: number;  // 0 = first half, 1 = second half
@@ -99,6 +99,11 @@ export interface KekaLeaveRequest {
   note?: string;
   status?: number;       // numeric status code from API
   requestedOn?: string;
+  selection?: Array<{
+    leaveTypeIdentifier: string;
+    leaveTypeName?: string;
+    count?: number;
+  }>;
 }
 
 export interface KekaLeaveBalance {
