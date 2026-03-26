@@ -106,16 +106,20 @@ export interface KekaLeaveRequest {
   }>;
 }
 
-export interface KekaLeaveBalance {
-  employeeId: string;
-  employeeName?: string;
+export interface KekaLeaveBalanceEntry {
   leaveTypeId: string;
   leaveTypeName?: string;
-  openingBalance: number;
-  earned: number;
-  taken: number;
-  pending: number;
-  closing: number;
+  accruedAmount: number;
+  consumedAmount: number;
+  availableBalance: number;
+  annualQuota: number;
+}
+
+export interface KekaLeaveBalance {
+  employeeIdentifier: string;
+  employeeNumber?: string;
+  employeeName?: string;
+  leaveBalance: KekaLeaveBalanceEntry[];
 }
 
 // ---------------------------------------------------------------------------
@@ -129,10 +133,19 @@ export interface KekaAttendancePunch {
 }
 
 export interface KekaAttendanceRecord {
-  employeeNumber: string;                     // e.g. "RIQ168"
-  attendanceDate: string;                     // ISO 8601 UTC date, e.g. "2026-03-23T00:00:00Z"
-  totalGrossHours?: number;                   // decimal hours, e.g. 10.4 → "10h 24m"
-  totalEffectiveOvertimeDuration?: number;    // decimal hours; 0 means no OT
+  id: string;
+  employeeNumber: string;
+  employeeIdentifier: string;
+  attendanceDate: string;                // ISO 8601 UTC, e.g. "2022-12-04T00:00:00Z"
+  dayType?: number;                      // 0=WorkDay, 1=Holiday, 2=WeeklyOff
+  leaveDayStatus?: number;               // 0=None, 1=Leave
+  shiftStartTime?: string;
+  shiftEndTime?: string;
+  shiftDuration?: number;                // hours
+  shiftEffectiveDuration?: number;       // hours
+  totalGrossHours?: number;              // decimal hours, e.g. 10.4 → "10h 24m"
+  totalEffectiveHours?: number;          // actual clocked hours (not overtime)
+  totalBreakDuration?: number;
   firstInOfTheDay?: KekaAttendancePunch | null;
   lastOutOfTheDay?: KekaAttendancePunch | null;
 }
@@ -142,9 +155,11 @@ export interface KekaAttendanceRecord {
 // ---------------------------------------------------------------------------
 
 export interface KekaPayGroup {
-  id: string;
+  identifier: string;     // Keka returns 'identifier', not 'id'
   name: string;
   description?: string;
+  legalEntityId?: string;
+  legalEntityName?: string;
 }
 
 export interface KekaPayBand {

@@ -11,6 +11,7 @@ import {
   KekaLeaveRequest,
   KekaLeaveType,
   KekaLeaveBalance,
+  KekaLeaveBalanceEntry,
 } from "../types.js";
 import {
   PaginationSchema,
@@ -351,15 +352,27 @@ Returns: Leave balance breakdown per employee and leave type — opening, earned
           return { content: [{ type: "text", text: truncate(JSON.stringify(res, null, 2)) }] };
         }
 
+        const rows: string[] = [];
+        for (const lb of res.data) {
+          const emp = lb.employeeName ?? lb.employeeNumber ?? lb.employeeIdentifier;
+          if (!lb.leaveBalance?.length) {
+            rows.push(`| ${emp} | — | — | — | — | — |`);
+          } else {
+            for (const entry of lb.leaveBalance) {
+              rows.push(
+                `| ${emp} | ${entry.leaveTypeName ?? entry.leaveTypeId} | ` +
+                `${entry.annualQuota < 0 ? "Unlimited" : entry.annualQuota} | ` +
+                `${entry.accruedAmount} | ${entry.consumedAmount} | ${entry.availableBalance} |`
+              );
+            }
+          }
+        }
         const lines = [
           `# Leave Balances`,
           "",
-          `| Employee | Leave Type | Opening | Earned | Taken | Pending | Closing |`,
-          `|---|---|---|---|---|---|---|`,
-          ...res.data.map(
-            (lb) =>
-              `| ${lb.employeeName ?? lb.employeeId} | ${lb.leaveTypeName ?? lb.leaveTypeId} | ${lb.openingBalance} | ${lb.earned} | ${lb.taken} | ${lb.pending} | ${lb.closing} |`
-          ),
+          `| Employee | Leave Type | Quota | Accrued | Used | Available |`,
+          `|---|---|---|---|---|---|`,
+          ...rows,
         ];
         lines.push(formatPaginationFooter(res));
         return { content: [{ type: "text", text: truncate(lines.join("\n")) }] };

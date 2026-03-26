@@ -67,7 +67,7 @@ Use IDs with keka_list_salaries to filter by pay group.`,
           "",
           `| Name | ID | Description |`,
           `|---|---|---|`,
-          ...res.data.map((pg) => `| ${pg.name} | ${pg.id} | ${pg.description ?? "—"} |`),
+          ...res.data.map((pg) => `| ${pg.name} | \`${pg.identifier}\` | ${pg.description ?? "—"} |`),
         ];
         lines.push(formatPaginationFooter(res));
         return { content: [{ type: "text", text: lines.join("\n") }] };
