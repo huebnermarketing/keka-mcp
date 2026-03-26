@@ -1,5 +1,7 @@
 # keka-mcp-server
 
+![Visitors](https://visitor-badge.laobi.icu/badge?page_id=YOUR_GITHUB_USERNAME.keka-mcp-server)
+
 MCP server for the [Keka HRM](https://www.keka.com) API, built for White Label IQ (WLIQ).
 
 Exposes 16 tools covering Keka's core modules so Claude (or any MCP client) can query and act on HR data.
