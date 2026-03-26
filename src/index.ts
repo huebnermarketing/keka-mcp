@@ -13,6 +13,7 @@
  *   KEKA_API_KEY        Keka API key
  *
  * Optional:
+ *   KEKA_EMPLOYEE_ID    Your own Keka employee ID — used as requestedBy when applying leave on behalf of others
  *   KEKA_SANDBOX=true   Use kekademo.com sandbox auth endpoint
  *   TRANSPORT=http      Use streamable HTTP transport instead of stdio
  *   PORT=3000           HTTP port (default: 3000, only used when TRANSPORT=http)

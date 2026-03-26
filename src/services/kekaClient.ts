@@ -189,6 +189,15 @@ export function handleApiError(error: unknown): string {
 
 let _client: KekaClient | null = null;
 
+/**
+ * Returns the employee ID of the person running the MCP (i.e. the logged-in user).
+ * Set KEKA_EMPLOYEE_ID in your Claude Desktop config to enable manager-on-behalf-of flows.
+ * Falls back to undefined if not configured.
+ */
+export function getRequestingEmployeeId(): string | undefined {
+  return process.env.KEKA_EMPLOYEE_ID || undefined;
+}
+
 export function getKekaClient(): KekaClient {
   if (_client) return _client;
 

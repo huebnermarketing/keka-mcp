@@ -4,7 +4,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { getKekaClient, handleApiError } from "../services/kekaClient.js";
+import { getKekaClient, handleApiError, getRequestingEmployeeId } from "../services/kekaClient.js";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 import {
   ResponseFormat,
@@ -252,9 +252,12 @@ Note: Requires the API key to have leave management write permissions.`,
     async (params) => {
       try {
         const client = getKekaClient();
+        // requestedBy = who is submitting the request (the logged-in user).
+        // Priority: explicit param > KEKA_EMPLOYEE_ID env var > employeeId (self-service fallback)
+        const requestedBy = params.requestedBy ?? getRequestingEmployeeId() ?? params.employeeId;
         const body: Record<string, unknown> = {
           employeeId: params.employeeId,
-          requestedBy: params.requestedBy ?? params.employeeId,  // required by Keka; defaults to self
+          requestedBy,
           leaveTypeId: params.leaveTypeId,
           fromDate: params.fromDate,
           toDate: params.toDate,
