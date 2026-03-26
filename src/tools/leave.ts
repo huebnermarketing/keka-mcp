@@ -267,13 +267,21 @@ Note: Requires the API key to have leave management write permissions.`,
         if (params.reason) body.reason = params.reason;
         if (params.note) body.note = params.note;
 
-        const res = await client.post<{ succeeded: boolean; message: string; data: { id: string } }>(
+        const res = await client.post<{ succeeded: boolean; message: string; errors?: string[]; data: { id: string } }>(
           "/time/leaverequests",
           body
         );
 
         if (!res.succeeded) {
-          return { content: [{ type: "text", text: `Error: ${res.message}` }] };
+          const detail = res.errors?.length
+            ? res.errors.join("; ")
+            : (res.message || "Unknown error");
+          return {
+            content: [{
+              type: "text",
+              text: `Error: ${detail}\n\n_Debug — requestedBy:_ \`${requestedBy}\``,
+            }],
+          };
         }
 
         if (params.response_format === ResponseFormat.JSON) {
@@ -288,6 +296,7 @@ Note: Requires the API key to have leave management write permissions.`,
                 `✅ Leave request created successfully.\n\n` +
                 `- **Request ID:** ${res.data?.id ?? "—"}\n` +
                 `- **Employee:** ${params.employeeId}\n` +
+                `- **Submitted by:** ${requestedBy}\n` +
                 `- **Dates:** ${params.fromDate} → ${params.toDate}` +
                 (params.reason ? `\n- **Reason:** ${params.reason}` : "") +
                 (params.note ? `\n- **Note:** ${params.note}` : ""),
