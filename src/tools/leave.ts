@@ -254,6 +254,7 @@ Note: Requires the API key to have leave management write permissions.`,
         const client = getKekaClient();
         const body: Record<string, unknown> = {
           employeeId: params.employeeId,
+          requestedBy: params.requestedBy ?? params.employeeId,  // required by Keka; defaults to self
           leaveTypeId: params.leaveTypeId,
           fromDate: params.fromDate,
           toDate: params.toDate,
@@ -262,7 +263,6 @@ Note: Requires the API key to have leave management write permissions.`,
         };
         if (params.reason) body.reason = params.reason;
         if (params.note) body.note = params.note;
-        if (params.requestedBy) body.requestedBy = params.requestedBy;
 
         const res = await client.post<{ succeeded: boolean; message: string; data: { id: string } }>(
           "/time/leaverequests",
