@@ -12,6 +12,7 @@ import {
   KEKA_AUTH_BASE,
   KEKA_AUTH_BASE_SANDBOX,
   TOKEN_EXPIRY_BUFFER_SECONDS,
+  RATE_LIMIT_RPM,
 } from "../constants.js";
 import { KekaPaginatedResponse, KekaSimpleResponse } from "../types.js";
 
@@ -167,7 +168,7 @@ export function handleApiError(error: unknown): string {
         case 404:
           return `Error: Resource not found. Verify the ID is correct. ${msg}`;
         case 429:
-          return "Error: Rate limit exceeded (50 req/min). Please wait before retrying.";
+          return `Error: Rate limit exceeded (${RATE_LIMIT_RPM} req/min). Please wait before retrying.`;
         case 500:
           return "Error: Keka server error. Try again in a moment.";
         default:
@@ -197,12 +198,9 @@ export function getKekaClient(): KekaClient {
   const apiKey = process.env.KEKA_API_KEY;
 
   if (!tenantBaseUrl || !clientId || !clientSecret || !apiKey) {
-    console.error(
-      "ERROR: Missing required environment variables.\n" +
-        "Required: KEKA_BASE_URL, KEKA_CLIENT_ID, KEKA_CLIENT_SECRET, KEKA_API_KEY\n" +
-        "Example: KEKA_BASE_URL=https://yourcompany.keka.com"
+    throw new Error(
+      "Missing required environment variables: KEKA_BASE_URL, KEKA_CLIENT_ID, KEKA_CLIENT_SECRET, KEKA_API_KEY"
     );
-    process.exit(1);
   }
 
   _client = new KekaClient({

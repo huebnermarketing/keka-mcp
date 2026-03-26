@@ -5,49 +5,19 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getKekaClient, handleApiError } from "../services/kekaClient.js";
-import { CHARACTER_LIMIT, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 import {
   ResponseFormat,
   KekaLeaveRequest,
   KekaLeaveType,
   KekaLeaveBalance,
-  KekaPaginatedResponse,
 } from "../types.js";
-
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
-
-const ResponseFormatSchema = z
-  .nativeEnum(ResponseFormat)
-  .default(ResponseFormat.MARKDOWN)
-  .describe("Output format: 'markdown' for human-readable, 'json' for machine-readable");
-
-const PaginationSchema = {
-  pageNumber: z.number().int().min(1).default(1).describe("Page number (starts at 1)"),
-  pageSize: z
-    .number()
-    .int()
-    .min(1)
-    .max(MAX_PAGE_SIZE)
-    .default(DEFAULT_PAGE_SIZE)
-    .describe(`Results per page (max ${MAX_PAGE_SIZE})`),
-};
-
-function truncate(text: string): string {
-  if (text.length > CHARACTER_LIMIT) {
-    return text.slice(0, CHARACTER_LIMIT) + "\n\n[Response truncated. Narrow your date range or add filters.]";
-  }
-  return text;
-}
-
-function formatPaginationFooter(res: KekaPaginatedResponse<unknown>): string {
-  return (
-    `\n---\nPage ${res.pageNumber} of ${res.totalPages} | ` +
-    `Showing ${res.data.length} of ${res.totalRecords} records.` +
-    (res.nextPage ? ` Pass pageNumber=${res.pageNumber + 1} for next page.` : "")
-  );
-}
+import {
+  PaginationSchema,
+  ResponseFormatSchema,
+  truncate,
+  formatPaginationFooter,
+} from "../utils.js";
 
 // ---------------------------------------------------------------------------
 // Tool registration
@@ -91,7 +61,7 @@ Use the returned IDs when creating leave requests with keka_create_leave_request
         }
 
         if (params.response_format === ResponseFormat.JSON) {
-          return { content: [{ type: "text", text: JSON.stringify(res, null, 2) }] };
+          return { content: [{ type: "text", text: truncate(JSON.stringify(res, null, 2)) }] };
         }
 
         const lines = [
@@ -105,7 +75,7 @@ Use the returned IDs when creating leave requests with keka_create_leave_request
           ),
         ];
         lines.push(formatPaginationFooter(res));
-        return { content: [{ type: "text", text: lines.join("\n") }] };
+        return { content: [{ type: "text", text: truncate(lines.join("\n")) }] };
       } catch (error) {
         return { content: [{ type: "text", text: handleApiError(error) }] };
       }
@@ -142,10 +112,12 @@ Examples:
             .describe("Comma-separated Keka employee IDs"),
           from: z
             .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format")
             .optional()
             .describe("Start date (ISO 8601, e.g. '2025-01-01')"),
           to: z
             .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format")
             .optional()
             .describe("End date (ISO 8601, e.g. '2025-01-31')"),
           ...PaginationSchema,
@@ -234,11 +206,11 @@ Note: Requires the API key to have leave management write permissions.`,
             .describe("Leave type ID (from keka_list_leave_types)"),
           fromDate: z
             .string()
-            .regex(/^\d{4}-\d{2}-\d{2}/, "Use YYYY-MM-DD format")
+            .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format")
             .describe("Leave start date (e.g., '2025-04-01')"),
           toDate: z
             .string()
-            .regex(/^\d{4}-\d{2}-\d{2}/, "Use YYYY-MM-DD format")
+            .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format")
             .describe("Leave end date (e.g., '2025-04-03')"),
           reason: z.string().min(1).max(500).describe("Reason for leave"),
           requestedBy: z

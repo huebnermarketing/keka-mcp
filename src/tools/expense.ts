@@ -5,44 +5,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getKekaClient, handleApiError } from "../services/kekaClient.js";
-import { CHARACTER_LIMIT, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 import {
   ResponseFormat,
   KekaExpense,
   KekaExpenseClaim,
-  KekaPaginatedResponse,
 } from "../types.js";
-
-const ResponseFormatSchema = z
-  .nativeEnum(ResponseFormat)
-  .default(ResponseFormat.MARKDOWN)
-  .describe("Output format: 'markdown' for human-readable, 'json' for machine-readable");
-
-const PaginationSchema = {
-  pageNumber: z.number().int().min(1).default(1).describe("Page number (starts at 1)"),
-  pageSize: z
-    .number()
-    .int()
-    .min(1)
-    .max(MAX_PAGE_SIZE)
-    .default(DEFAULT_PAGE_SIZE)
-    .describe(`Results per page (max ${MAX_PAGE_SIZE})`),
-};
-
-function truncate(text: string): string {
-  if (text.length > CHARACTER_LIMIT) {
-    return text.slice(0, CHARACTER_LIMIT) + "\n\n[Response truncated. Apply additional filters.]";
-  }
-  return text;
-}
-
-function formatPaginationFooter(res: KekaPaginatedResponse<unknown>): string {
-  return (
-    `\n---\nPage ${res.pageNumber} of ${res.totalPages} | ` +
-    `Showing ${res.data.length} of ${res.totalRecords} records.` +
-    (res.nextPage ? ` Pass pageNumber=${res.pageNumber + 1} for next page.` : "")
-  );
-}
+import {
+  PaginationSchema,
+  ResponseFormatSchema,
+  truncate,
+  formatPaginationFooter,
+} from "../utils.js";
 
 export function registerExpenseTools(server: McpServer): void {
   // ─── List Employee Expenses ───────────────────────────────────────────────
@@ -81,7 +55,7 @@ Note: Use keka_list_expense_claims for summary-level claim information across al
       try {
         const client = getKekaClient();
         const res = await client.getPaginated<KekaExpense>(
-          `/expense/employees/${params.employeeId}/expenses`,
+          `/expense/employees/${encodeURIComponent(params.employeeId)}/expenses`,
           { pageNumber: params.pageNumber, pageSize: params.pageSize }
         );
 
@@ -129,13 +103,23 @@ Note: Use keka_list_expense_claims for summary-level claim information across al
 Expense claims are collections of individual expenses submitted for reimbursement.
 
 Args:
+  - employeeIds (string, optional): Comma-separated employee IDs to filter by
   - pageNumber (integer): Page number (default: 1)
   - pageSize (integer): Results per page, max ${MAX_PAGE_SIZE} (default: ${DEFAULT_PAGE_SIZE})
   - response_format ('markdown' | 'json'): Output format (default: 'markdown')
 
 Returns: Expense claims with ID, employee, title, total amount, currency, status, submitted date, and approver.`,
 
-      inputSchema: z.object({ ...PaginationSchema, response_format: ResponseFormatSchema }).strict(),
+      inputSchema: z
+        .object({
+          employeeIds: z
+            .string()
+            .optional()
+            .describe("Comma-separated employee IDs to filter claims"),
+          ...PaginationSchema,
+          response_format: ResponseFormatSchema,
+        })
+        .strict(),
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -146,10 +130,13 @@ Returns: Expense claims with ID, employee, title, total amount, currency, status
     async (params) => {
       try {
         const client = getKekaClient();
-        const res = await client.getPaginated<KekaExpenseClaim>("/expense/claims", {
+        const claimsParams: Record<string, unknown> = {
           pageNumber: params.pageNumber,
           pageSize: params.pageSize,
-        });
+        };
+        if (params.employeeIds) claimsParams.employeeIds = params.employeeIds;
+
+        const res = await client.getPaginated<KekaExpenseClaim>("/expense/claims", claimsParams);
 
         if (!res.succeeded) {
           return { content: [{ type: "text", text: `Error: ${res.message}` }] };
