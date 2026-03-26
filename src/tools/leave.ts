@@ -162,10 +162,10 @@ Examples:
         const lines = [`# Leave Requests`, ""];
         for (const lr of res.data) {
           lines.push(
-            `- **${lr.employeeName ?? lr.employeeId}** | ${lr.leaveType?.name ?? "—"} | ` +
-            `${lr.fromDate} → ${lr.toDate} (${lr.numberOfDays}d) | ` +
+            `- **Emp #${lr.employeeNumber ?? lr.employeeIdentifier}** | ` +
+            `${lr.fromDate} → ${lr.toDate} | ` +
             `Status: **${lr.status ?? "—"}**` +
-            (lr.reason ? ` | _"${lr.reason}"_` : "")
+            (lr.note ? ` | _"${lr.note}"_` : "")
           );
         }
         lines.push(formatPaginationFooter(res));
@@ -189,7 +189,10 @@ Args:
   - leaveTypeId (string, required): Leave type ID (use keka_list_leave_types to find IDs)
   - fromDate (string, required): Start date in ISO 8601 format (e.g., '2025-04-01')
   - toDate (string, required): End date in ISO 8601 format (e.g., '2025-04-03')
-  - reason (string, required): Reason for leave
+  - fromSession (number, optional): Start session — 0 = first half, 1 = second half (default: 0)
+  - toSession (number, optional): End session — 0 = first half, 1 = second half (default: 1)
+  - reason (string, optional): Reason for leave
+  - note (string, optional): Additional note for the request
   - requestedBy (string, optional): Employee ID of the person submitting on behalf (defaults to employee)
   - response_format ('markdown' | 'json'): Output format (default: 'markdown')
 
@@ -212,7 +215,22 @@ Note: Requires the API key to have leave management write permissions.`,
             .string()
             .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format")
             .describe("Leave end date (e.g., '2025-04-03')"),
-          reason: z.string().min(1).max(500).describe("Reason for leave"),
+          fromSession: z
+            .number()
+            .int()
+            .min(0)
+            .max(1)
+            .default(0)
+            .describe("Start session: 0 = first half, 1 = second half"),
+          toSession: z
+            .number()
+            .int()
+            .min(0)
+            .max(1)
+            .default(1)
+            .describe("End session: 0 = first half, 1 = second half"),
+          reason: z.string().max(500).optional().describe("Reason for leave"),
+          note: z.string().max(500).optional().describe("Additional note for the request"),
           requestedBy: z
             .string()
             .optional()
@@ -235,8 +253,11 @@ Note: Requires the API key to have leave management write permissions.`,
           leaveTypeId: params.leaveTypeId,
           fromDate: params.fromDate,
           toDate: params.toDate,
-          reason: params.reason,
+          fromSession: params.fromSession,
+          toSession: params.toSession,
         };
+        if (params.reason) body.reason = params.reason;
+        if (params.note) body.note = params.note;
         if (params.requestedBy) body.requestedBy = params.requestedBy;
 
         const res = await client.post<{ succeeded: boolean; message: string; data: { id: string } }>(
@@ -260,8 +281,9 @@ Note: Requires the API key to have leave management write permissions.`,
                 `✅ Leave request created successfully.\n\n` +
                 `- **Request ID:** ${res.data?.id ?? "—"}\n` +
                 `- **Employee:** ${params.employeeId}\n` +
-                `- **Dates:** ${params.fromDate} → ${params.toDate}\n` +
-                `- **Reason:** ${params.reason}`,
+                `- **Dates:** ${params.fromDate} → ${params.toDate}` +
+                (params.reason ? `\n- **Reason:** ${params.reason}` : "") +
+                (params.note ? `\n- **Note:** ${params.note}` : ""),
             },
           ],
         };

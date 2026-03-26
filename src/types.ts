@@ -89,16 +89,16 @@ export interface KekaLeaveType {
 
 export interface KekaLeaveRequest {
   id: string;
-  employeeId: string;
-  employeeName?: string;
-  leaveType?: { id: string; name: string };
+  employeeIdentifier: string;
+  employeeNumber?: string;
+  leaveTypeId?: string;
   fromDate: string;
   toDate: string;
-  numberOfDays: number;
-  reason?: string;
-  status?: string;
+  fromSession?: number;  // 0 = first half, 1 = second half
+  toSession?: number;
+  note?: string;
+  status?: number;       // numeric status code from API
   requestedOn?: string;
-  approvedBy?: string;
 }
 
 export interface KekaLeaveBalance {
@@ -162,34 +162,6 @@ export interface KekaSalary {
 }
 
 // ---------------------------------------------------------------------------
-// Expense
-// ---------------------------------------------------------------------------
-
-export interface KekaExpense {
-  id: string;
-  employeeId: string;
-  title?: string;
-  amount: number;
-  currency?: string;
-  category?: string;
-  date?: string;
-  status?: string;
-  description?: string;
-}
-
-export interface KekaExpenseClaim {
-  id: string;
-  employeeId: string;
-  employeeName?: string;
-  title?: string;
-  totalAmount?: number;
-  currency?: string;
-  status?: string;
-  submittedOn?: string;
-  approvedBy?: string;
-}
-
-// ---------------------------------------------------------------------------
 // Recruitment (Hire)
 // ---------------------------------------------------------------------------
 
@@ -208,13 +180,15 @@ export interface KekaJob {
 
 export interface KekaCandidate {
   id: string;
-  name: string;
+  firstName: string;
+  lastName?: string;
+  middleName?: string;
+  gender?: number;
   email?: string;
-  phone?: string;
-  currentStage?: string;
-  appliedDate?: string;
-  source?: string;
-  status?: string;
+  mobilePhone?: { countryCode?: string; number?: string };
+  educationDetails?: unknown[];
+  experienceDetails?: unknown[];
+  skills?: unknown[];
 }
 
 // ---------------------------------------------------------------------------

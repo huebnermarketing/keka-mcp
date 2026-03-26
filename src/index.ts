@@ -34,7 +34,6 @@ import { registerHrisTools } from "./tools/hris.js";
 import { registerLeaveTools } from "./tools/leave.js";
 import { registerAttendanceTools } from "./tools/attendance.js";
 import { registerPayrollTools } from "./tools/payroll.js";
-import { registerExpenseTools } from "./tools/expense.js";
 import { registerHireTools } from "./tools/hire.js";
 import { registerPsaTools } from "./tools/psa.js";
 
@@ -53,7 +52,6 @@ function createServer(): McpServer {
   registerLeaveTools(server);
   registerAttendanceTools(server);
   registerPayrollTools(server);
-  registerExpenseTools(server);
   registerHireTools(server);
   registerPsaTools(server);
 

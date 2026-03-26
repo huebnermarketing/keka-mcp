@@ -105,7 +105,7 @@ Returns: Pay bands with ID, name, minimum and maximum salary amounts, and curren
     async (params) => {
       try {
         const client = getKekaClient();
-        const res = await client.getPaginated<KekaPayBand>("/payroll/paybands", {
+        const res = await client.getPaginated<KekaPayBand>("/payroll/payband", {
           pageNumber: params.pageNumber,
           pageSize: params.pageSize,
         });
