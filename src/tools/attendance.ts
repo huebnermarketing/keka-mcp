@@ -5,12 +5,21 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getKekaClient, handleApiError } from "../services/kekaClient.js";
-import { CHARACTER_LIMIT, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
-import { ResponseFormat, KekaAttendanceRecord, KekaPaginatedResponse } from "../types.js";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
+import { ResponseFormat, KekaAttendanceRecord } from "../types.js";
+import {
+  PaginationSchema,
+  ResponseFormatSchema,
+  truncate,
+  formatPaginationFooter,
+} from "../utils.js";
 
 // ---------------------------------------------------------------------------
 // Attendance formatting helpers
 // ---------------------------------------------------------------------------
+
+/** Timezone for display — defaults to Asia/Kolkata, override via KEKA_TIMEZONE env var. */
+const DISPLAY_TZ = process.env.KEKA_TIMEZONE ?? "Asia/Kolkata";
 
 /** Convert a decimal hour value (e.g. 10.4) into "10h 24m". */
 function decimalHoursToHM(decimal: number): string {
@@ -20,47 +29,23 @@ function decimalHoursToHM(decimal: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-/** Format a UTC ISO 8601 timestamp to IST (UTC+5:30) time string, e.g. "11:13 AM". */
-function utcToIST(utcTimestamp: string): string {
-  const date = new Date(utcTimestamp);
-  // Shift UTC ms by +5h30m
-  const istOffsetMs = (5 * 60 + 30) * 60 * 1000;
-  const istDate = new Date(date.getTime() + istOffsetMs);
-  const hours24 = istDate.getUTCHours();
-  const minutes = istDate.getUTCMinutes();
-  const ampm = hours24 >= 12 ? "PM" : "AM";
-  const hours12 = hours24 % 12 || 12;
-  const mm = String(minutes).padStart(2, "0");
-  return `${hours12}:${mm} ${ampm}`;
+/** Format a UTC ISO 8601 timestamp to local time string (e.g. "11:13 AM") in DISPLAY_TZ. */
+function utcToLocalTime(utcTimestamp: string): string {
+  return new Date(utcTimestamp).toLocaleTimeString("en-US", {
+    timeZone: DISPLAY_TZ,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
-/** Format a UTC ISO 8601 date string to "DD MMM", e.g. "23 Mar". */
+/** Format a UTC ISO 8601 date string to "DD MMM" (e.g. "23 Mar") in DISPLAY_TZ. */
 function utcToDateLabel(utcTimestamp: string): string {
-  const date = new Date(utcTimestamp);
-  const day = date.getUTCDate();
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${day} ${monthNames[date.getUTCMonth()]}`;
-}
-
-const ResponseFormatSchema = z
-  .nativeEnum(ResponseFormat)
-  .default(ResponseFormat.MARKDOWN)
-  .describe("Output format: 'markdown' for human-readable, 'json' for machine-readable");
-
-function truncate(text: string): string {
-  if (text.length > CHARACTER_LIMIT) {
-    return text.slice(0, CHARACTER_LIMIT) + "\n\n[Response truncated. Narrow your date range or reduce pageSize.]";
-  }
-  return text;
-}
-
-function formatPaginationFooter(res: KekaPaginatedResponse<unknown>): string {
-  return (
-    `\n---\nPage ${res.pageNumber} of ${res.totalPages} | ` +
-    `Showing ${res.data.length} of ${res.totalRecords} records.` +
-    (res.nextPage ? ` Pass pageNumber=${res.pageNumber + 1} for next page.` : "")
-  );
+  return new Date(utcTimestamp).toLocaleDateString("en-US", {
+    timeZone: DISPLAY_TZ,
+    day: "numeric",
+    month: "short",
+  });
 }
 
 export function registerAttendanceTools(server: McpServer): void {
@@ -94,20 +79,15 @@ Examples:
             .describe("Comma-separated Keka employee IDs"),
           from: z
             .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format")
             .optional()
             .describe("Start date ISO 8601 (e.g., '2025-03-01'). Max range: 90 days."),
           to: z
             .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format")
             .optional()
             .describe("End date ISO 8601 (e.g., '2025-03-31'). Max range: 90 days."),
-          pageNumber: z.number().int().min(1).default(1).describe("Page number (starts at 1)"),
-          pageSize: z
-            .number()
-            .int()
-            .min(1)
-            .max(MAX_PAGE_SIZE)
-            .default(DEFAULT_PAGE_SIZE)
-            .describe(`Results per page (max ${MAX_PAGE_SIZE})`),
+          ...PaginationSchema,
           response_format: ResponseFormatSchema,
         })
         .strict(),
@@ -157,10 +137,10 @@ Examples:
             const employee = a.employeeNumber ?? "—";
             const date = a.attendanceDate ? utcToDateLabel(a.attendanceDate) : "—";
             const clockIn = a.firstInOfTheDay?.timestamp
-              ? utcToIST(a.firstInOfTheDay.timestamp)
+              ? utcToLocalTime(a.firstInOfTheDay.timestamp)
               : "—";
             const clockOut = a.lastOutOfTheDay?.timestamp
-              ? utcToIST(a.lastOutOfTheDay.timestamp)
+              ? utcToLocalTime(a.lastOutOfTheDay.timestamp)
               : (a.firstInOfTheDay?.timestamp ? "Still In" : "—");
             const hours = a.totalGrossHours != null && a.totalGrossHours > 0
               ? decimalHoursToHM(a.totalGrossHours)

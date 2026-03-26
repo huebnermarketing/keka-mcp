@@ -106,7 +106,6 @@ async function runHttp(): Promise<void> {
   validateEnvironment();
   getKekaClient();
 
-  const server = createServer();
   const app = express();
   app.use(express.json());
 
@@ -115,14 +114,15 @@ async function runHttp(): Promise<void> {
     res.json({ status: "ok", server: "keka-mcp-server" });
   });
 
-  // MCP endpoint — stateless per-request transport
+  // MCP endpoint — stateless, new server+transport per request
   app.post("/mcp", async (req, res) => {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
     });
     res.on("close", () => transport.close());
-    await server.connect(transport);
+    const requestServer = createServer();
+    await requestServer.connect(transport);
     await transport.handleRequest(req, res, req.body);
   });
 

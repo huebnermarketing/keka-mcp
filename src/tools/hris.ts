@@ -5,57 +5,20 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getKekaClient, handleApiError } from "../services/kekaClient.js";
-import { CHARACTER_LIMIT, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 import {
   ResponseFormat,
   KekaEmployee,
   KekaDepartment,
   KekaJobTitle,
   KekaGroup,
-  KekaPaginatedResponse,
 } from "../types.js";
-
-// ---------------------------------------------------------------------------
-// Schemas
-// ---------------------------------------------------------------------------
-
-const PaginationSchema = {
-  pageNumber: z.number().int().min(1).default(1).describe("Page number (starts at 1)"),
-  pageSize: z
-    .number()
-    .int()
-    .min(1)
-    .max(MAX_PAGE_SIZE)
-    .default(DEFAULT_PAGE_SIZE)
-    .describe(`Results per page (max ${MAX_PAGE_SIZE})`),
-};
-
-const ResponseFormatSchema = z
-  .nativeEnum(ResponseFormat)
-  .default(ResponseFormat.MARKDOWN)
-  .describe("Output format: 'markdown' for human-readable, 'json' for machine-readable");
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatPaginationFooter(res: KekaPaginatedResponse<unknown>): string {
-  return (
-    `\n---\nPage ${res.pageNumber} of ${res.totalPages} | ` +
-    `Showing ${res.data.length} of ${res.totalRecords} total records.` +
-    (res.nextPage ? ` Pass pageNumber=${res.pageNumber + 1} for next page.` : "")
-  );
-}
-
-function truncate(text: string): string {
-  if (text.length > CHARACTER_LIMIT) {
-    return (
-      text.slice(0, CHARACTER_LIMIT) +
-      "\n\n[Response truncated. Use pageSize/pageNumber to narrow results.]"
-    );
-  }
-  return text;
-}
+import {
+  PaginationSchema,
+  ResponseFormatSchema,
+  truncate,
+  formatPaginationFooter,
+} from "../utils.js";
 
 // ---------------------------------------------------------------------------
 // Tool registration
@@ -208,7 +171,7 @@ Returns: Complete employee profile including personal info, department, job titl
       try {
         const client = getKekaClient();
         const res = await client.getSimple<KekaEmployee>(
-          `/hris/employees/${params.employeeId}`
+          `/hris/employees/${encodeURIComponent(params.employeeId)}`
         );
 
         if (!res.succeeded || !res.data) {

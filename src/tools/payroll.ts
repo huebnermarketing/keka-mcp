@@ -5,45 +5,19 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getKekaClient, handleApiError } from "../services/kekaClient.js";
-import { CHARACTER_LIMIT, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 import {
   ResponseFormat,
   KekaSalary,
   KekaPayGroup,
   KekaPayBand,
-  KekaPaginatedResponse,
 } from "../types.js";
-
-const ResponseFormatSchema = z
-  .nativeEnum(ResponseFormat)
-  .default(ResponseFormat.MARKDOWN)
-  .describe("Output format: 'markdown' for human-readable, 'json' for machine-readable");
-
-const PaginationSchema = {
-  pageNumber: z.number().int().min(1).default(1).describe("Page number (starts at 1)"),
-  pageSize: z
-    .number()
-    .int()
-    .min(1)
-    .max(MAX_PAGE_SIZE)
-    .default(DEFAULT_PAGE_SIZE)
-    .describe(`Results per page (max ${MAX_PAGE_SIZE})`),
-};
-
-function truncate(text: string): string {
-  if (text.length > CHARACTER_LIMIT) {
-    return text.slice(0, CHARACTER_LIMIT) + "\n\n[Response truncated. Use filters or reduce pageSize.]";
-  }
-  return text;
-}
-
-function formatPaginationFooter(res: KekaPaginatedResponse<unknown>): string {
-  return (
-    `\n---\nPage ${res.pageNumber} of ${res.totalPages} | ` +
-    `Showing ${res.data.length} of ${res.totalRecords} records.` +
-    (res.nextPage ? ` Pass pageNumber=${res.pageNumber + 1} for next page.` : "")
-  );
-}
+import {
+  PaginationSchema,
+  ResponseFormatSchema,
+  truncate,
+  formatPaginationFooter,
+} from "../utils.js";
 
 export function registerPayrollTools(server: McpServer): void {
   // ─── List Pay Groups ──────────────────────────────────────────────────────
